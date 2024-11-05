@@ -1,14 +1,14 @@
-const {susilaLifeDB} = require("../common/firebaseInit");
-const {executeGetReferralNumbers} = require("../services/contentService");
+const { susilaLifeDB } = require("../common/firebaseInit");
+const { executeGetReferralNumbers } = require("../services/contentService");
 const usersCollection = susilaLifeDB.collection("users");
 const referralCollection = susilaLifeDB.collection("referral");
 const isTimestampPastNDays = require("../common/comonFunction");
-const {getFirestore, FieldValue} = require("firebase-admin/firestore");
+const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const { FieldPath } = require('firebase-admin').firestore;
 const {
     susilaLifeDB: db,
-  } = require("../common/firebaseInit");
-const {CategoryIDS} = require("../common/constants");
+} = require("../common/firebaseInit");
+const { CategoryIDS } = require("../common/constants");
 
 exports.testGet = (req, res, next) => {
     res.status(301).json({
@@ -16,6 +16,190 @@ exports.testGet = (req, res, next) => {
         message: "TEST SUCCESS",
     });
 }
+
+
+// exports.getMovies = async (req, res) => {
+//     const dataList = [];
+//     try {
+//         const query = db.collection("content")
+//             .where("category", "==", "Movies")
+//             .orderBy("createAt", "desc");
+
+//         const snapshot = await query.get();
+//         snapshot.forEach((doc) => {
+//             const data = doc.data();
+//             // Add the fixed video URL for testing
+//             data.video_url = "https://player.vimeo.com/external/924554872.m3u8?s=cb12780fb7d08ac8ea73112f8d2dff75410f9bc3&logging=false";
+
+//             dataList.push(data);
+//         });
+
+//         let isNewContentsAvailable = false;
+//         if (dataList.length > 0) {
+//             const firstCreateAtTimestamp = dataList[0].createAt;
+//             console.log('print this==>', firstCreateAtTimestamp);
+//             isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
+//         }
+
+//         return res.status(200).json({
+//             data: dataList,
+//             isNewContentsAvailable: isNewContentsAvailable,
+//         });
+
+//     } catch (error) {
+//         console.error("Error getting Document", error);
+//         return res.status(500).json({ message: "Error getting document" });
+//     }
+// }
+
+
+exports.getMovies = async (req, res) => {
+    const dataList = [];
+    try {
+        const query = db.collection("content")
+            .where("category", "==", "Movies")
+
+
+        const snapshot = await query.get();
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            // if (isTimestampPastNDays(data.createAt, 7)) {
+            //     console.log('pass n days==>')
+            dataList.push(data);
+            // }
+        });
+        // console.log("getMovies  List======>>>>", dataList);
+
+        let isNewContentsAvailable = false;
+        if (dataList.length > 0) {
+            const firstCreateAtTimestamp = dataList[0].createAt;
+            console.log('print this==>', firstCreateAtTimestamp);
+            isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
+        }
+        return res.status(200).json({
+            data: dataList,
+            isNewContentsAvailable: isNewContentsAvailable,
+        })
+
+    } catch (error) {
+        console.error("Error getting Document", error);
+        return res.status(500).json({ message: "Error getting document" });
+    }
+}
+
+
+exports.getLatestMovies = async (req, res) => {
+    const dataList = [];
+    try {
+        const query = db.collection("content")
+            .where("category", "==", "Movies")
+            .orderBy("createAt", "desc") // Order by creation date in descending order
+            .limit(10); // Limit the results to the latest 10 movies
+
+        const snapshot = await query.get();
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            dataList.push(data); // Add each movie to the dataList
+        });
+
+        return res.status(200).json({
+            data: dataList,
+        });
+
+    } catch (error) {
+        console.error("Error getting Document", error);
+        return res.status(500).json({ message: "Error getting document" });
+    }
+}
+
+exports.getContentSeriesIterateData = async (req, res) => {
+    const dataList = [];
+    const category = req.body.category;
+    const title = req.body.title;
+
+    try {
+        const query = db.collection("content")
+            .where("category", "==", category)
+            .where("title", "==", title)
+            .orderBy("episode", "asc");
+
+        const snapshot = await query.get();
+        snapshot.forEach((doc) => {
+            const docData = doc.data();
+
+            // Use the fixed URL for testing
+            const videoUrl = "https://player.vimeo.com/external/924554872.m3u8?s=cb12780fb7d08ac8ea73112f8d2dff75410f9bc3&logging=false";
+
+
+            // Push the data to the list with only the best quality video URL
+            dataList.push({
+                ...docData,
+                video_url: videoUrl, // Only include the best quality video URL
+            });
+        });
+
+        return res.status(200).json({
+            data: dataList,
+        });
+
+    } catch (error) {
+        console.error("Error getting Document", error);
+        return res.status(500).json({ message: "Error getting document" });
+    }
+};
+
+// exports.getContentSeriesIterateData = async (req, res) => {
+//     const dataList = [];
+//     const category = req.body.category;
+//     const title = req.body.title;
+
+//     try {
+//         const query = db.collection("content")
+//             .where("category", "==", category)
+//             .where("title", "==", title)
+//             .orderBy("episode", "asc");
+
+//         const snapshot = await query.get();
+//         snapshot.forEach((doc) => {
+//             const docData = doc.data();
+//             const videoUrl = docData.video_url;
+
+//             // Determine the best quality video URL
+//             const bestQualityKey = getBestVideoQuality(videoUrl);
+//             const bestVideoUrl = bestQualityKey ? { [bestQualityKey]: videoUrl[bestQualityKey] } : {};
+
+//             // Push the data to the list with only the best quality video URL
+//             dataList.push({
+//                 ...docData,
+//                 video_url: bestVideoUrl, // Only include the best quality video URL
+//             });
+//         });
+
+//         return res.status(200).json({
+//             data: dataList,
+//         });
+
+//     } catch (error) {
+//         console.error("Error getting Document", error);
+//         return res.status(500).json({ message: "Error getting document" });
+//     }
+// };
+
+// // Function to get the best video quality key
+// function getBestVideoQuality(videoUrl) {
+//     // Define the preferred quality order
+//     const qualityOrder = ["1080p", "720p", "540p", "360p"];
+
+//     // Find the first available quality from the highest preferred quality to lowest
+//     for (const quality of qualityOrder) {
+//         if (videoUrl[quality]) {
+//             return quality; // Return the highest available quality
+//         }
+//     }
+
+//     return null; // Return null if no quality is available
+// }
+
 
 exports.getReferralNumbers = async (req, res, next) => {
 
@@ -28,24 +212,24 @@ exports.getReferralNumbers = async (req, res, next) => {
 
 };
 
-exports.getContentForTheChip = async(req, res) => {
+exports.getContentForTheChip = async (req, res) => {
     const dataList = [];
-    const category= req.body.category;
-    const categoryID= req.body.categoryID;
+    const category = req.body.category;
+    const categoryID = req.body.categoryID;
 
     try {
 
-        if(category === "")
+        if (category === "")
             return res.status(401).json("Category required")
 
-        if(categoryID === "")
+        if (categoryID === "")
             return res.status(401).json("CategoryId required")
-        
+
         if (category == "Music") {
             const query = db.collection("content")
-            .where("categoryID", "==", categoryID)
-            .where("musicType", "==", "Video");
-        
+                .where("categoryID", "==", categoryID)
+                .where("musicType", "==", "Video");
+
             const snapshot = await query.get();
             snapshot.forEach((doc) => {
                 dataList.push(doc.data());
@@ -53,9 +237,9 @@ exports.getContentForTheChip = async(req, res) => {
             });
         } else {
             const query = db.collection("content")
-            .where("category", "==", category)
-            .where("categoryID", "==", categoryID);
-            
+                .where("category", "==", category)
+                .where("categoryID", "==", categoryID);
+
             const snapshot = await query.get();
             snapshot.forEach((doc) => {
                 dataList.push(doc.data());
@@ -108,11 +292,11 @@ exports.getLatestItemsForCategories = async (req, res) => {
                     .limit(2);
 
                 const snapshot = await query.get();
-                snapshot.forEach((doc)=>{
+                snapshot.forEach((doc) => {
                     dataList.push(doc.data());
                     // console.log("Travel List======>>>", dataList);
                 });
-            } else if(categoryId === CategoryIDS.musicId){
+            } else if (categoryId === CategoryIDS.musicId) {
                 const query = db.collection("content")
                     .where("musicType", "==", "Video")
                     .orderBy("createAt", "desc")
@@ -130,7 +314,7 @@ exports.getLatestItemsForCategories = async (req, res) => {
                     .limit(2);
 
                 const snapshot = await query.get();
-                snapshot.forEach((doc) =>{
+                snapshot.forEach((doc) => {
                     dataList.push(doc.data());
                     // console.log("Other data List======>>>", dataList);
                 });
@@ -140,25 +324,25 @@ exports.getLatestItemsForCategories = async (req, res) => {
             continue;
         }
     }
-    console.log('len===>',dataList.length);
+    console.log('len===>', dataList.length);
     return res.status(200).json({
         data: dataList,
     });
 }
 
-exports.getFeaturedTeleseries = async( req, res) => {
+exports.getFeaturedTeleseries = async (req, res) => {
     const dataList = [];
-    const featuredContent= true;
-    const displayFeaturedContent= "Tele-series";
+    const featuredContent = true;
+    const displayFeaturedContent = "Tele-series";
     try {
         const query = await db.collection("series")
-        .where("featuredContent", "==", featuredContent)
-        .where("displayFeaturedContent", "==", displayFeaturedContent)
-        .orderBy("createAt", "desc")
-        .get();
+            .where("featuredContent", "==", featuredContent)
+            .where("displayFeaturedContent", "==", displayFeaturedContent)
+            .orderBy("createAt", "desc")
+            .get();
 
         // console.log("Inside the function  ===============>>>", query.docs.map((doc) => doc.data()));
-        const response =  query.docs.map((doc) => {
+        const response = query.docs.map((doc) => {
             // console.log("Query execute  ===============>>>" );
             dataList.push(doc.data());
             // console.log("getFeaturedTeleseries ===============>>>",dataList );
@@ -173,14 +357,14 @@ exports.getFeaturedTeleseries = async( req, res) => {
     }
 }
 
-exports.getSusilaOriginals = async(req, res) => {
-    const dataList= [];
+exports.getSusilaOriginals = async (req, res) => {
+    const dataList = [];
 
     try {
-        console.log("Inside the function  ===============>>>" );
+        console.log("Inside the function  ===============>>>");
         const query = db.collection("series")
-        .where("contentProvider", "==", "tzUubgYgewJacpwAdLxi")
-        .orderBy("createAt", "desc");
+            .where("contentProvider", "==", "tzUubgYgewJacpwAdLxi")
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -196,11 +380,11 @@ exports.getSusilaOriginals = async(req, res) => {
     }
 }
 
-exports.getHighlights = async(req, res) => {
+exports.getHighlights = async (req, res) => {
     const dataList = [];
 
     try {
-        console.log("Inside the function  ===============>>>" );
+        console.log("Inside the function  ===============>>>");
         const query = db.collection("shorts").orderBy("createAt", "desc");
 
         const snapshot = await query.get();
@@ -211,14 +395,14 @@ exports.getHighlights = async(req, res) => {
         return res.status(200).json({
             data: dataList,
         });
-        
+
     } catch (error) {
         console.error("Error getting documents: ", error);
         return res.status(500).json({ message: "Error getting documents" });
     }
 }
 
-exports.getBanners = async(req, res) => {
+exports.getBanners = async (req, res) => {
     const dataList = [];
 
     try {
@@ -241,16 +425,16 @@ exports.getBanners = async(req, res) => {
 }
 
 exports.getSeasonVolume = async (req, res) => {
-    const dataList=[];
+    const dataList = [];
     // const title = req.body.title;
-    const title= req.query.title;
+    const title = req.query.title;
 
     try {
         const query = db.collection("content")
-        .where("title", "==", title)
-        .orderBy("createAt", "desc");
+            .where("title", "==", title)
+            .orderBy("createAt", "desc");
 
-        const snapshot= await query.get();
+        const snapshot = await query.get();
         snapshot.forEach((doc) => {
             dataList.push(doc.data());
             console.log("getSeasonVolume List =====>>>", dataList);
@@ -264,19 +448,19 @@ exports.getSeasonVolume = async (req, res) => {
     }
 }
 
-exports.getContentByTitleAndSeasonData = async (req, res)=> {
-    const dataList=[];
+exports.getContentByTitleAndSeasonData = async (req, res) => {
+    const dataList = [];
     // const title= req.body.title;
     // const season= req.body.season;
 
-    const title= req.query.title;
-    const season= req.query.season;
+    const title = req.query.title;
+    const season = req.query.season;
 
     console.log("title =====>>>", title);
     console.log("season=====>>>", season);
 
     try {
-        const query =  db.collection("content")
+        const query = db.collection("content")
             .where("title", "==", title)
             .where("season", "==", season)
             .orderBy("createAt");
@@ -292,18 +476,18 @@ exports.getContentByTitleAndSeasonData = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getContentProvidersData = async (req, res)=> {
-    const dataList=[];
-    const contentProvider= req.body.contentProvider;
+exports.getContentProvidersData = async (req, res) => {
+    const dataList = [];
+    const contentProvider = req.body.contentProvider;
 
     try {
-        const query =  db.collection("content")
-        .where("contentProvider", "==", contentProvider)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("contentProvider", "==", contentProvider)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -315,21 +499,21 @@ exports.getContentProvidersData = async (req, res)=> {
         });
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Error getting document"});
+        return res.status(500).json({ message: "Error getting document" });
     }
 }
 
-exports.getSeries = async (req, res)=> {
-    const dataList=[];
+exports.getSeries = async (req, res) => {
+    const dataList = [];
 
     try {
-        const query =  db.collection("series").orderBy("createAt", "desc");
+        const query = db.collection("series").orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 60)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getSeries======>>>>", dataList);
@@ -349,7 +533,7 @@ exports.getSeries = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
@@ -388,14 +572,14 @@ exports.getSeries = async (req, res)=> {
 //     }
 // };
 
-exports.getSeriesCommon = async (req, res)=> {
-    console.log("body =====>" , req)
-    const dataList=[];
-    const seriesName= req.query.seriesName;
-    console.log("series name =====> ",seriesName)
+exports.getSeriesCommon = async (req, res) => {
+    console.log("body =====>", req)
+    const dataList = [];
+    const seriesName = req.query.seriesName;
+    console.log("series name =====> ", seriesName)
 
     try {
-        const query =  db.collection(seriesName).orderBy("createAt");
+        const query = db.collection(seriesName).orderBy("createAt");
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             dataList.push(doc.data());
@@ -407,18 +591,18 @@ exports.getSeriesCommon = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getASeries = async (req, res)=> {
-    const dataList=[];
-    title= req.body.title;
+exports.getASeries = async (req, res) => {
+    const dataList = [];
+    title = req.body.title;
 
     try {
-        const query =  db.collection("series")
-        .where("title", "==", title)
-        .orderBy("createAt", "desc");
+        const query = db.collection("series")
+            .where("title", "==", title)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -431,41 +615,41 @@ exports.getASeries = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getASeriesBySeriesId = async (req, res)=> {
-    const dataList=[];
+exports.getASeriesBySeriesId = async (req, res) => {
+    const dataList = [];
     id = req.body.id;
     category = req.body.category;
-    console.log('pring body===>',req.body);
-    console.log('pring body id ===>',req.body.id);
-    console.log('pring body===>',req.body.category);
+    console.log('pring body===>', req.body);
+    console.log('pring body id ===>', req.body.id);
+    console.log('pring body===>', req.body.category);
     try {
-        if(category == 'Teledrama') {
+        if (category == 'Teledrama') {
             const query = db.collection("series")
                 .where("id", "==", id)
                 .orderBy("createAt", "desc");
-            const snapshot =   await query.get();
+            const snapshot = await query.get();
             snapshot.forEach((doc) => {
                 dataList.push(doc.data());
                 console.log("getASeriesBySeriesId  List======>>>>", dataList);
             });
-        } else if(category == 'Web Series'){
+        } else if (category == 'Web Series') {
             const query = db.collection("webSeries")
                 .where("id", "==", id)
                 .orderBy("createAt", "desc");
-            const snapshot =   await query.get();
+            const snapshot = await query.get();
             snapshot.forEach((doc) => {
                 dataList.push(doc.data());
                 console.log("getASeriesBySeriesId  List======>>>>", dataList);
             });
-        } else{
+        } else {
             const query = db.collection("series")
                 .where("id", "==", id)
                 .orderBy("createAt", "desc");
-            const snapshot =   await query.get();
+            const snapshot = await query.get();
             snapshot.forEach((doc) => {
                 dataList.push(doc.data());
                 console.log("getASeriesBySeriesId  List======>>>>", dataList);
@@ -478,99 +662,67 @@ exports.getASeriesBySeriesId = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getComedy = async (req, res)=> {
-    const dataList=[];
+exports.getComedy = async (req, res) => {
+    const dataList = [];
     try {
         console.log("getComedy ======>>>>");
-        const query =  db.collection("content")
-        .where("category", "==", "Comedy")
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("category", "==", "Comedy")
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getComedy  List======>>>>", dataList);
 
-        let isNewContentsAvailable= false;
-
-        if (dataList.length > 0) {
-            const firstCreateAtTimestamp = dataList[0].createAt;
-            console.log('print this==>',firstCreateAtTimestamp)
-            isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
-        }
-        return res.status(200).json({
-            data: dataList,
-            isNewContentsAvailable: isNewContentsAvailable,
-        });
-
-    } catch (error) {
-        console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
-    }
-}
-
-exports.getMovies = async (req, res)=> {
-    const dataList=[];
-    try {
-        const query =  db.collection("content")
-        .where("category", "==", "Movies")
-        .orderBy("createAt", "desc");
-
-        const snapshot = await query.get();
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            // if (isTimestampPastNDays(data.createAt, 7)) {
-            //     console.log('pass n days==>')
-                dataList.push(data);
-            // }
-        });
-        // console.log("getMovies  List======>>>>", dataList);
-
         let isNewContentsAvailable = false;
+
         if (dataList.length > 0) {
             const firstCreateAtTimestamp = dataList[0].createAt;
-            console.log('print this==>', firstCreateAtTimestamp);
+            console.log('print this==>', firstCreateAtTimestamp)
             isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
         }
         return res.status(200).json({
             data: dataList,
             isNewContentsAvailable: isNewContentsAvailable,
-        })
+        });
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getMusic = async (req, res)=> {
-    const dataList=[];
+
+
+exports.getMusic = async (req, res) => {
+    const dataList = [];
     try {
-        const query =  db.collection("content")
-        .where("category", "==", "Music")
-        .where("musicType", "==", "Video")
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("category", "==", "Music")
+            .where("musicType", "==", "Video")
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
-        
+
         // console.log("getMusic  List======>>>>", dataList);
         let isNewContentsAvailable = false;
         if (dataList.length > 0) {
-            const firstCreateAtTimestamp = dataList[0].createAt; 
+            const firstCreateAtTimestamp = dataList[0].createAt;
             console.log('print this==>', firstCreateAtTimestamp);
             isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
         }
@@ -582,18 +734,18 @@ exports.getMusic = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getContentForCategory = async (req, res)=> {
-    const dataList=[];
-    const category= req.query.category;
-    
+exports.getContentForCategory = async (req, res) => {
+    const dataList = [];
+    const category = req.query.category;
+
     try {
-        const query =  db.collection("content")
-        .where("category", "==", category)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("category", "==", category)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -606,31 +758,31 @@ exports.getContentForCategory = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getContentById = async (req, res)=> {
-    const dataList=[];
-    categoryID= req.body.categoryID;
+exports.getContentById = async (req, res) => {
+    const dataList = [];
+    categoryID = req.body.categoryID;
 
     try {
-        const query =  db.collection("content")
-        .where("categoryID", "==", categoryID)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("categoryID", "==", categoryID)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getContentById  List======>>>>", dataList);
 
         let isNewContentsAvailable = false;
         if (dataList.length > 0) {
-            const firstCreateAtTimestamp = dataList[0].createAt; 
+            const firstCreateAtTimestamp = dataList[0].createAt;
             console.log('print this==>', firstCreateAtTimestamp);
             isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
         }
@@ -641,60 +793,24 @@ exports.getContentById = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getCooking = async (req, res)=> {
-    const dataList=[];
-    categoryID= "GuwGfbcCbwjgtP08b9b1";
+exports.getCooking = async (req, res) => {
+    const dataList = [];
+    categoryID = "GuwGfbcCbwjgtP08b9b1";
 
     try {
-        const query =  db.collection("content")
-        .where("categoryID", "==", categoryID)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("categoryID", "==", categoryID)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
-            // }
-        });
-        // console.log("getCooking  List======>>>>", dataList);
-
-        let isNewContentsAvailable = false;
-        if (dataList.length > 0) {
-            const firstCreateAtTimestamp = dataList[0].createAt; 
-            console.log('print this==>', firstCreateAtTimestamp);
-            isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
-        }
-
-        return res.status(200).json({
-            data: dataList,
-            isNewContentsAvailable: isNewContentsAvailable,
-        });
-
-    } catch (error) {
-        console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
-    }
-}
-
-exports.getBusiness = async (req, res)=> {
-    const dataList=[];
-    categoryID= "I2KVNpzu9ByruCEw8xOQ";
-
-    try {
-        const query =  db.collection("content")
-        .where("categoryID", "==", categoryID)
-        .orderBy("createAt", "desc");
-
-        const snapshot = await query.get();
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getCooking  List======>>>>", dataList);
@@ -713,24 +829,24 @@ exports.getBusiness = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getStageDrama = async (req, res)=> {
-    const dataList=[];
-    categoryID= "iB9ehHcq4bF1uHS8E5V1";
+exports.getBusiness = async (req, res) => {
+    const dataList = [];
+    categoryID = "I2KVNpzu9ByruCEw8xOQ";
 
     try {
-        const query =  db.collection("content")
-        .where("categoryID", "==", categoryID)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("categoryID", "==", categoryID)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getCooking  List======>>>>", dataList);
@@ -749,24 +865,24 @@ exports.getStageDrama = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getDocumentary = async (req, res)=> {
-    const dataList=[];
-    categoryID= "NcrWKJaojseTRlRKzdBP";
+exports.getStageDrama = async (req, res) => {
+    const dataList = [];
+    categoryID = "iB9ehHcq4bF1uHS8E5V1";
 
     try {
-        const query =  db.collection("content")
-        .where("categoryID", "==", categoryID)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("categoryID", "==", categoryID)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getCooking  List======>>>>", dataList);
@@ -785,24 +901,24 @@ exports.getDocumentary = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getRealityShows = async (req, res)=> {
-    const dataList=[];
-    categoryID= "dbZ4bxMncb1go7d2xlZt";
+exports.getDocumentary = async (req, res) => {
+    const dataList = [];
+    categoryID = "NcrWKJaojseTRlRKzdBP";
 
     try {
-        const query =  db.collection("content")
-        .where("categoryID", "==", categoryID)
-        .orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("categoryID", "==", categoryID)
+            .orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
             const data = doc.data();
             // if (isTimestampPastNDays(data.createAt, 7)) {
-                dataList.push(data);
+            dataList.push(data);
             // }
         });
         // console.log("getCooking  List======>>>>", dataList);
@@ -821,15 +937,51 @@ exports.getRealityShows = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getAllContent = async (req, res)=> {
-    const dataList=[];
+exports.getRealityShows = async (req, res) => {
+    const dataList = [];
+    categoryID = "dbZ4bxMncb1go7d2xlZt";
 
     try {
-        const query =  db.collection("content").orderBy("createAt", "desc");
+        const query = db.collection("content")
+            .where("categoryID", "==", categoryID)
+            .orderBy("createAt", "desc");
+
+        const snapshot = await query.get();
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            // if (isTimestampPastNDays(data.createAt, 7)) {
+            dataList.push(data);
+            // }
+        });
+        // console.log("getCooking  List======>>>>", dataList);
+
+        let isNewContentsAvailable = false;
+        if (dataList.length > 0) {
+            const firstCreateAtTimestamp = dataList[0].createAt;
+            console.log('print this==>', firstCreateAtTimestamp);
+            isNewContentsAvailable = isTimestampPastNDays(firstCreateAtTimestamp, 7);
+        }
+
+        return res.status(200).json({
+            data: dataList,
+            isNewContentsAvailable: isNewContentsAvailable,
+        });
+
+    } catch (error) {
+        console.error("Error getting Document", error);
+        return res.status(500).json({ message: "Erroe getting document" });
+    }
+}
+
+exports.getAllContent = async (req, res) => {
+    const dataList = [];
+
+    try {
+        const query = db.collection("content").orderBy("createAt", "desc");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -842,22 +994,22 @@ exports.getAllContent = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getContentIterateData = async (req, res)=> {
-    const dataList=[];
-    const category= req.body.category;
-    const title= req.body.title;
-    const season= req.body.season;
+exports.getContentIterateData = async (req, res) => {
+    const dataList = [];
+    const category = req.body.category;
+    const title = req.body.title;
+    const season = req.body.season;
 
     try {
-        const query =  db.collection("content")
-        .where("category", "==", category)
-        .where("title", "==", title)
-        .where("season", "==", season)
-        .orderBy("createAt");
+        const query = db.collection("content")
+            .where("category", "==", category)
+            .where("title", "==", title)
+            .where("season", "==", season)
+            .orderBy("createAt");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -870,47 +1022,20 @@ exports.getContentIterateData = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getContentSeriesIterateData = async (req, res)=> {
-    const dataList=[];
-    const category= req.body.category;
-    const title= req.body.title;
+exports.getContentForEpisodeLineUp = async (req, res) => {
+    const dataList = [];
+    const category = req.body.category;
+    const title = req.body.title;
 
     try {
-        const query =  db.collection("content")
-        .where("category", "==", category)
-        .where("title", "==", title)
-        // .orderBy("createAt")
-            .orderBy("episode", "asc");
-
-        const snapshot = await query.get();
-        snapshot.forEach((doc) => {
-            dataList.push(doc.data());
-            // console.log("getContentSeriesIterateData  List======>>>>", dataList);
-        });
-        return res.status(200).json({
-            data: dataList,
-        });
-
-    } catch (error) {
-        console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
-    }
-}
-
-exports.getContentForEpisodeLineUp = async (req, res)=> {
-    const dataList=[];
-    const category= req.body.category;
-    const title= req.body.title;
-
-    try {
-        const query =  db.collection("content")
-        .where("category", "==", category)
-        .where("title", "==", title)
-        .orderBy("createAt");
+        const query = db.collection("content")
+            .where("category", "==", category)
+            .where("title", "==", title)
+            .orderBy("createAt");
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -923,17 +1048,17 @@ exports.getContentForEpisodeLineUp = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.getContentIterateDataForContinueWatching = async (req, res)=> {
-    const dataList=[];
-    const id= req.body.id;
+exports.getContentIterateDataForContinueWatching = async (req, res) => {
+    const dataList = [];
+    const id = req.body.id;
     try {
         console.log(" Function execute start");
-        const query =  db.collection("content")
-        .where("id", "==", id);
+        const query = db.collection("content")
+            .where("id", "==", id);
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -946,16 +1071,16 @@ exports.getContentIterateDataForContinueWatching = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Error getting document"});
+        return res.status(500).json({ message: "Error getting document" });
     }
 }
 
-exports.getContentIterateDataForMyList = async (req, res)=> {
-    const dataList=[];
-    const id= req.body.id;
+exports.getContentIterateDataForMyList = async (req, res) => {
+    const dataList = [];
+    const id = req.body.id;
     try {
-        const query =  db.collection("series")
-        .where("id", "==", id);
+        const query = db.collection("series")
+            .where("id", "==", id);
 
         const snapshot = await query.get();
         snapshot.forEach((doc) => {
@@ -968,12 +1093,13 @@ exports.getContentIterateDataForMyList = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
-exports.checkForUserInContentsView = async (req, res, next) => {''
-    const dataList= [];
+exports.checkForUserInContentsView = async (req, res, next) => {
+    ''
+    const dataList = [];
     const contentId = req.body.contentId;
     const userId = req.body.userId;
     const currentYearAndMonth = req.body.currentYearAndMonth;
@@ -991,11 +1117,11 @@ exports.checkForUserInContentsView = async (req, res, next) => {''
             .where(currentYearAndMonth, 'array-contains', userId)
             .get();
 
-            
-            const count = querySnapshot.docs.length;
 
-            console.log(`checkForUserInContentsView =============>>`, dataList);
-            console.log(`count =============>>`, count);
+        const count = querySnapshot.docs.length;
+
+        console.log(`checkForUserInContentsView =============>>`, dataList);
+        console.log(`count =============>>`, count);
         if (count > 0) {
             return res.status(200).json({ success: true, message: "User has viewed the content." });
         } else {
@@ -1017,7 +1143,7 @@ exports.addViewCount = async (req, res) => {
     const contentCategoryId = req.body.contentCategoryId;
     const season = req.body.season;
     const episode = req.body.episode;
-    
+
     try {
         if (!userId || !contentId || !currentYearAndMonth || !contentProviderId || !contentTitle || !category || !contentCategoryId) {
             return res.status(400).json({
@@ -1026,7 +1152,7 @@ exports.addViewCount = async (req, res) => {
             });
         }
 
-        const contentDoc  =  db.collection("contentViews").doc(contentId);
+        const contentDoc = db.collection("contentViews").doc(contentId);
 
         const updateData = {
             contentProvider: contentProviderId,
@@ -1044,7 +1170,7 @@ exports.addViewCount = async (req, res) => {
 
         console.log(`View count for content with ID updated successfully.`);
         return res.status(200).json({ success: true, message: "Views count updated successfully" });
-    }catch (error) {
+    } catch (error) {
         console.error("Error updating document", error);
         return res.status(500).json({ message: "Error updating document" });
     }
@@ -1054,9 +1180,9 @@ exports.setAFavouriteContent = async (req, res, next) => {
     const userId = req.body.userId;
     const contentId = req.params.id;
     // const favouriteList = req.body.favouriteList;
-    
+
     if (!userId || !contentId) {
-        return res.status(400).json({  
+        return res.status(400).json({
             status: "NOT_COMPLETED",
             message: "Request body is missing userId or contentId",
         });
@@ -1109,29 +1235,29 @@ exports.getAFavouriteContent = async (req, res, next) => {
 
     try {
         const contentDocRef = db.collection('content')
-        .doc(contentId);
+            .doc(contentId);
         const contentDoc = await contentDocRef.get();
-        
+
         const favouriteList = contentDoc.data().favouriteList || [];
         console.log(" Function execute start fav========>>>>", favouriteList);
 
-        if(favouriteList.includes(userId)){
-            return res.status(200).json({result: true});
-        }else{
-            return res.status(200).json({result: false});
+        if (favouriteList.includes(userId)) {
+            return res.status(200).json({ result: true });
+        } else {
+            return res.status(200).json({ result: false });
         }
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Error getting document"});
+        return res.status(500).json({ message: "Error getting document" });
     }
 }
 
-exports.sendContactUsMessage =async(req, res) => {
+exports.sendContactUsMessage = async (req, res) => {
     const contactUsMessage = req.body;
 
     try {
-        console.log('req.body===>',req.body);
+        console.log('req.body===>', req.body);
         await db.collection('inquiry').add(contactUsMessage);
         res.status(200).send({ success: true });
     } catch (error) {
@@ -1215,7 +1341,7 @@ exports.getRandomMovies = async (req, res) => {
         const snapshot = await db.collection("content")
             .where("category", "==", "Movies")
             .orderBy("createAt", "desc")
-            // .limit(10)
+            .limit(10)
             .get();
 
         const allMovies = [];
@@ -1261,7 +1387,7 @@ exports.getPopularContent = async (req, res) => {
                     id: doc.id,
                     lastMonthLength: data[lastMonth].length
                 });
-                console.log('lastMonthLength==>',data[lastMonth].length);
+                console.log('lastMonthLength==>', data[lastMonth].length);
             }
 
         });
@@ -1289,7 +1415,7 @@ exports.getPopularContent = async (req, res) => {
         contentSnapshot.forEach((doc) => {
             popularData.push(doc.data());
         });
-        console.log('pol==>',popularData.length)
+        console.log('pol==>', popularData.length)
         return res.status(200).json({
             data: popularData,
         });
@@ -1301,12 +1427,12 @@ exports.getPopularContent = async (req, res) => {
     }
 }
 
-exports.getContentByContentId = async (req, res)=> {
-    const dataList=[];
-    contentId= req.body.contentId;
+exports.getContentByContentId = async (req, res) => {
+    const dataList = [];
+    contentId = req.body.contentId;
 
     try {
-        const query =  db.collection("content")
+        const query = db.collection("content")
             .where("id", "==", contentId)
             .orderBy("createAt", "desc");
 
@@ -1322,7 +1448,7 @@ exports.getContentByContentId = async (req, res)=> {
 
     } catch (error) {
         console.error("Error getting Document", error);
-        return res.status(500).json({message: "Erroe getting document"});
+        return res.status(500).json({ message: "Erroe getting document" });
     }
 }
 
