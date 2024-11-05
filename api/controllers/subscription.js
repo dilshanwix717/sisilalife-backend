@@ -3,7 +3,7 @@ const stripe = require("stripe")(process.env.STRIPE_PRIVATE_KEY);
 const admin = require("firebase-admin");
 const serviceAccount = require("../../susila-life-test-firebase-adminsdk-3eph5-f70f6ab24a.json");
 const { executeUpdateUserSubscriptionHistory } = require("../services/subscriptionService");
-
+const emailController = require('./emailController');
 // Ensure these are valid Stripe price IDs from your Stripe dashboard
 const [annually, sixMonths, threeMonths, monthly] = ['price_1Q6bWRRvuSmNKnJA9RbZ3Owh', 'price_1Q6bVuRvuSmNKnJAjTOelneT', 'price_1Q6bVTRvuSmNKnJABQw2ksBw', 'price_1Q6bUwRvuSmNKnJA4K87f08P'];
 
@@ -117,27 +117,28 @@ const createSubscriptionCheckout = async (req, res) => {
 
 
 /************ payment success ********/
+// Payment Success Function
 const paymentSuccess = async (req, res) => {
     const { sessionId, firebaseId } = req.body;
+
     try {
         const session = await stripe.checkout.sessions.retrieve(sessionId);
+
         if (session.payment_status === 'paid') {
             const subscriptionId = session.subscription;
+
             try {
                 const subscription = await stripe.subscriptions.retrieve(subscriptionId);
                 const user = await admin.auth().getUser(firebaseId);
                 const planId = subscription.plan.id;
+
                 // Map the plan ID to the corresponding plan name
                 const planType = planNames[planId];
-
                 const startDate = moment.unix(subscription.current_period_start).format('YYYY-MM-DD');
                 const endDate = moment.unix(subscription.current_period_end).format('YYYY-MM-DD');
-                const durationInSeconds = subscription.current_period_end - subscription.current_period_start;
 
                 // Update the Firestore database (webAppUsers collection)
                 const userDocRef = admin.firestore().collection("webAppUsers").doc(user.uid);
-
-                // Update the subscription details in Firestore with plan name
                 await userDocRef.update({
                     subscription: {
                         sessionId: null,
@@ -149,43 +150,67 @@ const paymentSuccess = async (req, res) => {
                         status: 'active',
                     }
                 });
+
+                // Send subscription confirmation email
+                const emailResult = await emailController.sendSubscriptionConfirmationEmail(
+                    user.email,
+                    user.displayName,
+                    planType,
+                    startDate,
+                    endDate,
+                    session.amount_total / 100,
+                    session.currency.toUpperCase()
+                );
+
+                if (emailResult.success) {
+                    console.log('Confirmation email sent successfully');
+                } else {
+                    console.error('Failed to send confirmation email:', emailResult.error);
+                }
             } catch (error) {
                 console.error('Error retrieving subscription:', error);
             }
+
             return res.json({ message: "Payment successful" });
         } else {
             return res.json({ message: "Payment failed" });
         }
     } catch (error) {
-        res.send(error);
+        console.error("Error in payment success handling:", error.message);
+        res.status(500).send({ error: error.message });
     }
 };
 
+// Cancel Subscription Function
 const cancelSubscription = async (req, res) => {
     const { customerId } = req.body;
     try {
-        // Fetch the user's details from Firebase Auth
         const user = await admin.auth().getUser(customerId);
-
-        // Reference to user's Firestore document
         const userDocRef = admin.firestore().collection("webAppUsers").doc(user.uid);
         const userDocSnap = await userDocRef.get();
 
-        // Check if the user document exists
-        if (userDocSnap.exists) {  // Corrected: 'exists' is a property, not a function
+        if (userDocSnap.exists) {
             const userData = userDocSnap.data();
             const subscriptionId = userData.subscription.subscriptionId;
+            const planType = userData.subscription.planType;
+            const endDate = userData.subscription.planEndDate;
 
-            // Cancel the subscription
-            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-            await stripe.subscriptions.update(subscriptionId, {
-                cancel_at_period_end: true,
-            });
+            await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: true });
+            await userDocRef.update({ "subscription.status": 'cancelled' });
 
-            // Update the subscription details in Firestore
-            await userDocRef.update({
-                "subscription.status": 'cancelled',  // Use the correct field update notation
-            });
+            // Send cancellation confirmation email
+            const emailResult = await emailController.sendSubscriptionCancellationEmail(
+                user.email,
+                user.displayName,
+                planType,
+                endDate
+            );
+
+            if (emailResult.success) {
+                console.log('Cancellation confirmation email sent successfully');
+            } else {
+                console.error('Failed to send cancellation confirmation email:', emailResult.error);
+            }
 
             return res.json({ message: "Subscription cancelled successfully" });
         } else {

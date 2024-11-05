@@ -1,6 +1,6 @@
 const express = require("express");
-const {logger} = require("../utils/logger");
-const {CheckAuth} = require("../middleware/check-auth");
+const { logger } = require("../utils/logger");
+const { CheckAuth } = require("../middleware/check-auth");
 const router = express.Router();
 
 const ContentController = require("../controllers/contentController")
@@ -40,11 +40,15 @@ router.post("/getContentIterateDataForContinueWatching", logger, CheckAuth, Cont
 router.post("/getContentIterateDataForMyList", logger, CheckAuth, ContentController.getContentIterateDataForMyList);//done
 router.get("/getContentByContentId", logger, CheckAuth, ContentController.getContentByContentId);//done
 
+
 router.get("/getLatestContent", logger, CheckAuth, ContentController.getLatestContent);//done
 router.get("/getLatestTVSeries", logger, CheckAuth, ContentController.getLatestTVSeries);//done
 router.get("/getRandomTVSeries", logger, CheckAuth, ContentController.getRandomTVSeries);//done
 router.get("/getRandomMovies", logger, CheckAuth, ContentController.getRandomMovies);//done
+router.get("/getLatestMovies", logger, CheckAuth, ContentController.getLatestMovies);//done
+
 router.get("/getPopularContent", logger, CheckAuth, ContentController.getPopularContent);//done
+
 
 router.post("/checkForUserInContentsView", logger, CheckAuth, ContentController.checkForUserInContentsView);
 router.post("/addViewCount/:id", logger, CheckAuth, ContentController.addViewCount);
