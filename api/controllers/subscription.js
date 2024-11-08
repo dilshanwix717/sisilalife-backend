@@ -117,7 +117,6 @@ const createSubscriptionCheckout = async (req, res) => {
 
 
 /************ payment success ********/
-// Payment Success Function
 const paymentSuccess = async (req, res) => {
     const { sessionId, firebaseId } = req.body;
 
